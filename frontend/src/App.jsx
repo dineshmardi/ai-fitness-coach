@@ -1,16 +1,18 @@
 import { useState } from "react";
 import CameraView from "./components/CameraView";
 import WorkoutBuilder from "./components/WorkoutBuilder";
+import HomeScreen from "./components/HomeScreen";
+import Dashboard from "./components/Dashboard";
+import WorkoutSummary from "./components/WorkoutSummary";
 
 function App() {
 
     const [mode, setMode] = useState(null);
     const [workoutQueue, setWorkoutQueue] = useState(null);
+    const [summary, setSummary] = useState(null);
 
     function startWorkout(queue) {
-
         console.log("Workout queue:", queue);
-
         setWorkoutQueue(queue);
         setMode("guided");
     }
@@ -19,34 +21,37 @@ function App() {
         setMode("manual");
     }
 
+    function finishWorkout(data) {
+        setSummary(data);
+        setMode("summary");
+    }
+
     return (
 
-        <div style={{ textAlign: "center", padding: "40px" }}>
+        <div
+            style={{
+                minHeight: "100vh",
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                color: "white",
+                fontFamily: "Inter, system-ui, sans-serif",
+                textAlign: "center",
+                position: "relative",
+                padding: "20px"
+            }}
+        >
 
             {/* HOME SCREEN */}
 
             {!mode && (
-
-                <div>
-
-                    <h1>AI Fitness Coach</h1>
-
-                    <button
-                        onClick={startManual}
-                        style={{ margin: "10px", padding: "12px 25px" }}
-                    >
-                        Manual Workout
-                    </button>
-
-                    <button
-                        onClick={() => setMode("builder")}
-                        style={{ margin: "10px", padding: "12px 25px" }}
-                    >
-                        Guided Workout
-                    </button>
-
-                </div>
-
+                <HomeScreen
+                    startManual={startManual}
+                    openBuilder={() => setMode("builder")}
+                    openDashboard={() => setMode("dashboard")}
+                />
             )}
 
             {/* WORKOUT BUILDER */}
@@ -58,13 +63,37 @@ function App() {
             {/* MANUAL CAMERA */}
 
             {mode === "manual" && (
-                <CameraView workoutQueue={null} />
+                <CameraView
+                    workoutQueue={null}
+                    onFinish={finishWorkout}
+                />
             )}
 
             {/* GUIDED CAMERA */}
 
             {mode === "guided" && (
-                <CameraView workoutQueue={workoutQueue} />
+                <CameraView
+                    workoutQueue={workoutQueue}
+                    onFinish={finishWorkout}
+                />
+            )}
+
+            {/* DASHBOARD */}
+
+            {mode === "dashboard" && (
+                <Dashboard />
+            )}
+
+            {/* SUMMARY */}
+
+            {mode === "summary" && (
+                <WorkoutSummary
+                    summary={summary}
+                    goHome={() => {
+                        setMode(null);
+                        setSummary(null);
+                    }}
+                />
             )}
 
         </div>

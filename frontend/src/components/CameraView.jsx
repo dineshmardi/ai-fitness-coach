@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { initPose, detectPose } from "../pose/poseDetection";
-
+import WorkoutHUD from "./WorkoutHUD";
 // ROUTER FUNCTIONS
 import { analyzeExercise, setExercise } from "../exercises/exerciseRouter";
 import { saveWorkoutSession } from "../api/workoutApi";//new added api
@@ -8,7 +8,13 @@ import { saveWorkoutSession } from "../api/workoutApi";//new added api
 // import { startWorkout, checkExerciseCompletion } from "../workout/workoutController";
 // import { setWorkoutQueue } from "../workout/workoutQueue";
 
-export default function CameraView({ workoutQueue }) {
+export default function CameraView({ workoutQueue, onFinish }) {
+
+    //checking modes
+    //const isGuidedMode = workoutQueue && workoutQueue.length > 0;
+    const isGuidedMode = Array.isArray(workoutQueue) && workoutQueue.length > 0;
+
+
 
     // VIDEO + CANVAS REFERENCES
     const videoRef = useRef(null);
@@ -23,6 +29,11 @@ export default function CameraView({ workoutQueue }) {
 
     const queueIndexRef = useRef(0);
     const targetRepsRef = useRef(null);
+    const sessionExercisesRef = useRef([]);
+
+
+    //target reps
+    const targetReps = targetRepsRef.current || 10;
     // UI STATES
     const [stage, setStage] = useState("");
     const [cameraOn, setCameraOn] = useState(false);
@@ -106,7 +117,6 @@ export default function CameraView({ workoutQueue }) {
     function stopCamera() {
 
         const tracks = videoRef.current.srcObject?.getTracks();
-
         tracks?.forEach(track => track.stop());
 
         videoRef.current.srcObject = null;
@@ -116,12 +126,25 @@ export default function CameraView({ workoutQueue }) {
         const ctx = canvasRef.current.getContext("2d");
         ctx.clearRect(0, 0, 640, 480);
 
-        // =============================
-        // SAVE WORKOUT SESSION
-        // =============================
-
         const duration = Math.floor((Date.now() - sessionStartRef.current) / 1000);
 
+        // -------- SUMMARY FOR MANUAL MODE --------
+        if (!isGuidedMode && onFinish) {
+
+            onFinish({
+                exercises: [
+                    {
+                        type: exerciseRef.current,
+                        reps: reps
+                    }
+                ],
+                totalCalories: Math.floor(reps * 0.4),
+                totalDuration: duration
+            });
+
+        }
+
+        // -------- SAVE WORKOUT --------
         const workoutData = {
             userId: "guest",
             exercises: [
@@ -220,6 +243,14 @@ export default function CameraView({ workoutQueue }) {
 
                         if (result.plankTime !== undefined) {
                             setReps(result.plankTime);
+                            if (result.plankTime >= (workoutQueue?.[queueIndexRef.current]?.duration || 0)) {
+
+                                sessionExercisesRef.current.push({
+                                    type: "plank",
+                                    duration: result.plankTime
+                                });
+
+                            }
                         }
 
                         if (result.bodyAngle !== undefined) {
@@ -241,6 +272,10 @@ export default function CameraView({ workoutQueue }) {
                                 workoutStartedRef.current = true;
 
                                 console.log("Exercise completed");
+                                sessionExercisesRef.current.push({
+                                    type: exerciseRef.current,
+                                    reps: result.reps
+                                });
 
                                 queueIndexRef.current += 1;
 
@@ -248,6 +283,23 @@ export default function CameraView({ workoutQueue }) {
                                 if (queueIndexRef.current >= workoutQueue.length) {
 
                                     console.log("Workout finished");
+
+                                    const duration = Math.floor(
+                                        (Date.now() - sessionStartRef.current) / 1000
+                                    );
+
+                                    const summaryData = {
+                                        exercises: sessionExercisesRef.current,
+                                        totalCalories: sessionExercisesRef.current.reduce(
+                                            (sum, ex) => sum + ((ex.reps || 0) * 0.4),
+                                            0
+                                        ),
+                                        totalDuration: duration
+                                    };
+
+                                    if (onFinish) {
+                                        onFinish(summaryData);
+                                    }
 
                                     stopCamera();
                                     return;
@@ -431,6 +483,16 @@ export default function CameraView({ workoutQueue }) {
                         width: "100%",
                         height: "100%"
                     }}
+                />
+                <WorkoutHUD
+                    exercise={exercise}
+                    reps={reps}
+                    targetReps={targetReps}
+                    feedback={feedback}
+                    restTime={restTime}
+                    isGuidedMode={isGuidedMode}
+                    workoutQueue={workoutQueue}
+                    queueIndex={queueIndexRef.current}
                 />
 
             </div>

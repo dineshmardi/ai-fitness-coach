@@ -4,49 +4,51 @@ import WorkoutSession from "../models/WorkoutSession.js";
 const router = express.Router();
 
 
-// SAVE WORKOUT SESSION
+// Save workout
 router.post("/save-workout", async (req, res) => {
-
     try {
 
-        const workout = new WorkoutSession(req.body);
+        const session = new WorkoutSession(req.body);
 
-        await workout.save();
+        await session.save();
 
         res.json({
             message: "Workout saved successfully",
-            data: workout
+            session
         });
 
     } catch (error) {
 
+        console.error(error);
+
         res.status(500).json({
-            error: error.message
+            error: "Failed to save workout"
         });
 
     }
-
 });
 
 
-// GET ALL WORKOUT SESSIONS
+// Get workouts for dashboard
 router.get("/workouts", async (req, res) => {
 
     try {
 
-        const sessions = await WorkoutSession.find().sort({ createdAt: -1 });
+        const workouts = await WorkoutSession.find()
+            .sort({ createdAt: -1 });
 
-        res.json(sessions);
+        res.json(workouts);
 
     } catch (error) {
 
+        console.error(error);
+
         res.status(500).json({
-            error: error.message
+            error: "Failed to fetch workouts"
         });
 
     }
 
 });
-
 
 export default router;
