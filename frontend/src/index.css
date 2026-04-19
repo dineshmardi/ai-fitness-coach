@@ -124,7 +124,3 @@ button:focus-visible {
   }
 
 }
-
-::-webkit-scrollbar {
-  display: none;
-}
