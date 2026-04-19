@@ -1,10 +1,15 @@
 import { useRef, useState } from "react";
+import { exerciseConfig } from "../exercises/exerciseConfig";
+
 import { initPose, detectPose } from "../pose/poseDetection";
 import WorkoutHUD from "./WorkoutHUD";
+
+
+
 // ROUTER FUNCTIONS
 import { analyzeExercise, setExercise } from "../exercises/exerciseRouter";
 import { saveWorkoutSession } from "../api/workoutApi";//new added api
-
+import { speak } from "../voice/speak";
 // import { startWorkout, checkExerciseCompletion } from "../workout/workoutController";
 // import { setWorkoutQueue } from "../workout/workoutQueue";
 
@@ -47,6 +52,29 @@ export default function CameraView({ workoutQueue, onFinish }) {
     const [restTime, setRestTime] = useState(0);
     const restTimerRef = useRef(null);
     const isRestingRef = useRef(false);
+
+    //speak
+    const lastSpokenRef = useRef("");
+    const lastSpeakTimeRef = useRef(0);
+
+    //group
+
+    const categoryStyles = {
+        "Lower Body": "rgba(74,222,128,0.08)",
+        "Upper Body": "rgba(96,165,250,0.08)",
+        "Core": "rgba(250,204,21,0.08)"
+    };
+
+
+    const groupedExercises = {};
+
+    exerciseConfig.forEach(ex => {
+        if (!groupedExercises[ex.category]) {
+            groupedExercises[ex.category] = [];
+        }
+        groupedExercises[ex.category].push(ex); // store full object
+    });
+    
 
     // BODY SKELETON CONNECTIONS
     const connections = [
@@ -354,7 +382,24 @@ export default function CameraView({ workoutQueue, onFinish }) {
                         }
                     }
 
-                    setFeedback(result.feedback ?? "");
+                    const newFeedback = result.feedback ?? "";
+
+                    setFeedback(newFeedback);
+
+                    // SPEAK CONTROL
+                    const now = Date.now();
+
+                    // speak only if changed + cooldown
+                    if (
+                        newFeedback &&
+                        newFeedback !== lastSpokenRef.current &&
+                        now - lastSpeakTimeRef.current > 1500
+                    ) {
+                        speak(newFeedback);
+
+                        lastSpokenRef.current = newFeedback;
+                        lastSpeakTimeRef.current = now;
+                    }
                     setStage(result.stage ?? "");
 
 
@@ -390,55 +435,84 @@ export default function CameraView({ workoutQueue, onFinish }) {
 
             {/* MANUAL MODE ONLY */}
             {!workoutQueue && (
-                <div style={{ textAlign: "center" }}>
-                    <h2>Select Exercise</h2>
+                <div style={{ width: "100%", maxWidth: "900px" }}>
+                    <h2 style={{ marginBottom: "20px" }}>Select Exercise</h2>
 
-                    {/* SQUAT */}
-                    <button onClick={() => {
+                    {Object.keys(groupedExercises).map(category => (
+                        <div
+                            key={category}
+                            style={{
+                                marginBottom: "25px",
+                                padding: "20px",
+                                borderRadius: "14px",
+                                background: categoryStyles[category] || "rgba(255,255,255,0.05)",
+                                backdropFilter: "blur(10px)",
+                                border: "1px solid rgba(255,255,255,0.08)"
+                            }}
+                        >
+                            <h3 style={{ marginBottom: "15px" }}>{category}</h3>
 
-                        setExercise("squat");
-                        setExerciseUI("squat");
-                        exerciseRef.current = "squat";
+                            <div style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "15px"
+                            }}>
 
-                        setReps(0);
-                        setAngle(0);
-                        setFeedback("");
+                                {groupedExercises[category].map(ex => (
+                                    <div
+                                        key={ex.name}
+                                        onClick={() => {
+                                            setExercise(ex.name);
+                                            setExerciseUI(ex.name);
+                                            exerciseRef.current = ex.name;
 
-                    }}>
-                        Squat
-                    </button>
+                                            setReps(0);
+                                            setAngle(0);
+                                            setFeedback("");
+                                        }}
+                                        style={{
+                                            width: "140px",
+                                            borderRadius: "12px",
+                                            overflow: "hidden",
+                                            background: "#1f1f1f",
+                                            cursor: "pointer",
+                                            transition: "all 0.2s ease",
+                                            boxShadow: "0 5px 15px rgba(0,0,0,0.4)"
+                                        }}
+                                        onMouseEnter={e => {
+                                            e.currentTarget.style.transform = "scale(1.05)";
+                                        }}
+                                        onMouseLeave={e => {
+                                            e.currentTarget.style.transform = "scale(1)";
+                                        }}
+                                    >
 
-                    {/* PUSHUP */}
-                    <button onClick={() => {
+                                        {/* IMAGE */}
+                                        <img
+                                            src={ex.image}
+                                            alt={ex.label}
+                                            style={{
+                                                width: "100%",
+                                                height: "140px",
+                                                objectFit: "cover"
+                                            }}
+                                        />
 
-                        setExercise("pushup");
-                        setExerciseUI("pushup");
-                        exerciseRef.current = "pushup";
+                                        {/* LABEL */}
+                                        <div style={{
+                                            padding: "3px",
+                                            textAlign: "center",
+                                            fontWeight: "500"
+                                        }}>
+                                            {ex.label}
+                                        </div>
 
-                        setReps(0);
-                        setAngle(0);
-                        setFeedback("");
+                                    </div>
+                                ))}
 
-                    }}>
-                        Push-up
-                    </button>
-
-                    {/* PLANK */}
-                    <button onClick={() => {
-
-                        setExercise("plank");
-                        setExerciseUI("plank");
-                        exerciseRef.current = "plank";
-
-                        setReps(0);
-                        setAngle(0);
-                        setFeedback("");
-
-                    }}>
-                        Plank
-                    </button>
-
-                    <br /><br />
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
 

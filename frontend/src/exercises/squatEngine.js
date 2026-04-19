@@ -1,5 +1,15 @@
 import { calculateAngle } from "../utils/angleUtils";
 
+// Configurable thresholds (adjust these for different body types/difficulty)
+const THRESHOLDS = {
+  KNEE_STRAIGHT: 170,
+  KNEE_BENT_START: 165,
+  KNEE_BOTTOM: 110,
+  MIN_HIP_DROP: 0.05,
+  MIN_BACK_ANGLE: 140,
+  SHALLOW_WARNING: 130
+};
+
 let stage = "UP";
 let reps = 0;
 
@@ -16,6 +26,18 @@ export function resetSquat() {
 }
 
 export function analyzeSquat(landmarks) {
+  // Safety check: validate landmarks exist
+  if (!landmarks || !landmarks[11] || !landmarks[23] || !landmarks[25] || !landmarks[27]) {
+    return {
+      reps,
+      stage: "INVALID",
+      feedback: "Camera angle unclear",
+      kneeAngle: 0,
+      hipAngle: 0,
+      backAngle: 0,
+      hipDrop: 0
+    };
+  }
 
   // LEFT SIDE
   const leftShoulder = landmarks[11];
@@ -98,7 +120,7 @@ export function analyzeSquat(landmarks) {
   // POSTURE CHECK
   // =============================
 
-  if (backAngle < 140) {
+  if (backAngle < THRESHOLDS.MIN_BACK_ANGLE) {
     feedback = "Keep Back Straight";
   }
 
@@ -106,14 +128,14 @@ export function analyzeSquat(landmarks) {
   // STATE MACHINE
   // =============================
 
-  if (stage === "UP" && movingDown && kneeAngle < 165) {
+  if (stage === "UP" && movingDown && kneeAngle < THRESHOLDS.KNEE_BENT_START) {
 
     stage = "MOVING_DOWN";
     feedback = "Go Down";
 
   }
 
-  if (stage === "MOVING_DOWN" && kneeAngle < 110 && hipDrop > 0.05) {
+  if (stage === "MOVING_DOWN" && kneeAngle < THRESHOLDS.KNEE_BOTTOM && hipDrop > THRESHOLDS.MIN_HIP_DROP) {
 
     stage = "BOTTOM";
     feedback = "Good Depth";
@@ -131,7 +153,7 @@ export function analyzeSquat(landmarks) {
   // REP COUNT
   // =============================
 
-  if (stage === "MOVING_UP" && kneeAngle > 170) {
+  if (stage === "MOVING_UP" && kneeAngle > THRESHOLDS.KNEE_STRAIGHT) {
 
     reps++;
     feedback = "Good Rep";
@@ -145,7 +167,7 @@ export function analyzeSquat(landmarks) {
   // SHALLOW SQUAT WARNING
   // =============================
 
-  if (stage === "MOVING_DOWN" && kneeAngle > 130) {
+  if (stage === "MOVING_DOWN" && kneeAngle > THRESHOLDS.SHALLOW_WARNING) {
 
     feedback = "Go Lower";
 

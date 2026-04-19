@@ -10,7 +10,8 @@ export async function initPose() {
 
   poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
     baseOptions: {
-      modelAssetPath: "/models/pose_landmarker_heavy.task"
+      modelAssetPath: "/models/pose_landmarker_full.task",
+      delegate: "GPU"
     },
     runningMode: "VIDEO",
     numPoses: 1
