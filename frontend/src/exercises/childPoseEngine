@@ -1,0 +1,250 @@
+import { calculateAngle } from "../utils/angleUtils";
+import { smooth } from "../utils/smoothing";
+
+const THRESHOLDS = {
+  // posture (primary)
+  KNEE_BENT: 110,
+  HIP_UPRIGHT: 120,
+  HIP_FOLD: 100,
+
+  // secondary (loose)
+  HIP_BACK: 0.32,        // 🔥 increased (was too strict)
+  ARM_STRAIGHT: 140,
+
+  // timing
+  STABLE_TIME: 1000,
+  HOLD_TIME: 15000,
+  BREAK_TIME: 800,
+
+  // standing detect
+  KNEE_STAND: 150
+};
+
+let stage = "ENTRY";
+
+let stableStart = null;
+let holdStart = null;
+let breakStart = null;
+let restStart = null;
+
+let holdTime = 0;
+let reps = 0;
+
+let lastFeedback = "";
+
+export function resetChildPose() {
+  stage = "ENTRY";
+  stableStart = null;
+  holdStart = null;
+  breakStart = null;
+  restStart = null;
+  holdTime = 0;
+  reps = 0;
+  lastFeedback = "";
+}
+
+export function analyzeChildPose(landmarks) {
+  if (!landmarks) return null;
+
+  const shoulder = landmarks[11];
+  const elbow = landmarks[13];
+  const wrist = landmarks[15];
+  const hip = landmarks[23];
+  const knee = landmarks[25];
+  const ankle = landmarks[27];
+  const nose = landmarks[0];
+
+  // =====================
+  // ANGLES
+  // =====================
+  const kneeAngle = smooth("cp_knee", calculateAngle(hip, knee, ankle));
+  const hipAngle = smooth("cp_hip", calculateAngle(shoulder, hip, knee));
+  const armAngle = smooth("cp_arm", calculateAngle(shoulder, elbow, wrist));
+
+  // =====================
+  // GLOBAL CHECK (standing)
+  // =====================
+  const isStanding =
+    kneeAngle > THRESHOLDS.KNEE_STAND &&
+    hipAngle > THRESHOLDS.HIP_UPRIGHT;
+
+  if (isStanding) {
+    stage = "ENTRY";
+    return output("Kneel down to start");
+  }
+
+  // =====================
+  // CONDITIONS
+  // =====================
+  const kneesBent = kneeAngle < THRESHOLDS.KNEE_BENT;
+  const folded = hipAngle < THRESHOLDS.HIP_FOLD;
+  const armsStraight = armAngle > THRESHOLDS.ARM_STRAIGHT;
+
+  // 🔥 relaxed hip-back (non-blocking)
+  const hipsBack = Math.abs(hip.x - ankle.x) < THRESHOLDS.HIP_BACK;
+
+  // head check (only later stages)
+  const headDown =
+    nose.y > shoulder.y &&
+    nose.y > elbow.y;
+
+  // PRIMARY (strict)
+  const primaryOK = kneesBent && folded;
+
+  // SECONDARY (loose, don't block)
+  const secondaryOK = armsStraight && headDown;
+
+  const fullPose = primaryOK && secondaryOK;
+
+  // kneeling reset
+  const kneeling =
+    kneeAngle < THRESHOLDS.KNEE_BENT &&
+    hipAngle > THRESHOLDS.HIP_UPRIGHT;
+
+  console.log(
+    "CP →",
+    "stage:", stage,
+    "knee:", Math.round(kneeAngle),
+    "hip:", Math.round(hipAngle),
+    "arm:", Math.round(armAngle),
+    "hipsBack:", hipsBack,
+    "full:", fullPose,
+    "hold:", holdTime
+  );
+
+  // =====================
+  // ENTRY
+  // =====================
+  if (stage === "ENTRY") {
+    if (!kneesBent || hipAngle < THRESHOLDS.HIP_UPRIGHT) {
+      return output("Kneel down and keep your back straight");
+    }
+
+    stage = "HIP_BACK";
+    return output("Sit back on your heels");
+  }
+
+  // =====================
+  // HIP BACK (non-blocking now)
+  // =====================
+  if (stage === "HIP_BACK") {
+
+    // 🔥 don't block progression if already folded
+    if (!hipsBack && !folded) {
+      return output("Sit back more on your heels");
+    }
+
+    stage = "FOLD";
+    return output("Bend forward and reach your hands");
+  }
+
+  // =====================
+  // FOLD
+  // =====================
+  if (stage === "FOLD") {
+
+    if (!folded) {
+      return output("Bend forward more");
+    }
+
+    stage = "ALIGN";
+    return output("Stretch your arms forward");
+  }
+
+  // =====================
+  // ALIGN
+  // =====================
+  if (stage === "ALIGN") {
+
+    if (!armsStraight) return output("Keep your arms straight");
+    if (!headDown) return output("Lower your head");
+
+    // stability before HOLD
+    if (fullPose) {
+      if (!stableStart) stableStart = Date.now();
+
+      if (Date.now() - stableStart > THRESHOLDS.STABLE_TIME) {
+        stage = "HOLD";
+        holdStart = Date.now();
+        return output("Good, hold this position");
+      }
+    } else {
+      stableStart = null;
+      return output("Adjust your position");
+    }
+
+    return output("");
+  }
+
+  // =====================
+  // HOLD
+  // =====================
+  if (stage === "HOLD") {
+
+    if (!fullPose) {
+      if (!breakStart) breakStart = Date.now();
+
+      if (Date.now() - breakStart > THRESHOLDS.BREAK_TIME) {
+        stage = "ALIGN";
+        holdStart = null;
+        holdTime = 0;
+        return output("Get back into position");
+      }
+    } else {
+      breakStart = null;
+    }
+
+    holdTime = Math.floor((Date.now() - holdStart) / 1000);
+
+    if (holdTime >= 15) {
+      reps++;
+      stage = "RETURN";
+      return output("Come back to kneeling position");
+    }
+
+    if (holdTime === 5) return output("Hold 5 seconds");
+    if (holdTime === 10) return output("Hold 10 seconds");
+
+    return output("");
+  }
+
+  // =====================
+  // RETURN
+  // =====================
+  if (stage === "RETURN") {
+
+    if (!kneeling) {
+      return output("Return to kneeling position");
+    }
+
+    stage = "REST";
+    restStart = Date.now();
+    return output("Rest for 10 seconds");
+  }
+
+  // =====================
+  // REST
+  // =====================
+  if (stage === "REST") {
+    const restTime = Math.floor((Date.now() - restStart) / 1000);
+
+    if (restTime >= 10) {
+      stage = "ENTRY";
+      return output(`Rep ${reps} complete`);
+    }
+
+    return output("");
+  }
+
+  return null;
+
+  function output(msg) {
+    if (!msg || msg === lastFeedback) {
+      return { stage, reps, holdTime, feedback: "" };
+    }
+
+    lastFeedback = msg;
+
+    return { stage, reps, holdTime, feedback: msg };
+  }
+}

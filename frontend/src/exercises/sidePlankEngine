@@ -1,0 +1,176 @@
+import { calculateAngle } from "../utils/angleUtils";
+import { smooth } from "../utils/smoothing";
+
+const THRESHOLDS = {
+  BODY_STRAIGHT: 160,
+  BODY_BREAK: 145,
+  ELBOW_ALIGN: 0.06,
+
+  LIE_Y: 0.12,        // lying detection
+  SIDE_TILT: 0.04     // sideways detection
+};
+
+let stage = "ENTRY";
+let holdStart = null;
+let holdTime = 0;
+let lastFeedback = "";
+
+export function resetSidePlank() {
+  stage = "ENTRY";
+  holdStart = null;
+  holdTime = 0;
+  lastFeedback = "";
+}
+
+export function analyzeSidePlank(landmarks) {
+  if (!landmarks) return null;
+
+  const shoulder = landmarks[11];
+  const elbow   = landmarks[13];
+  const hip     = landmarks[23];
+  const knee    = landmarks[25];
+  const ankle   = landmarks[27];
+
+  // =====================
+  // ANGLE (SMOOTHED)
+  // =====================
+  let bodyAngle = calculateAngle(shoulder, hip, ankle);
+  bodyAngle = smooth("sideplank_angle", bodyAngle);
+
+  // =====================
+  // CORE CHECKS
+  // =====================
+  const ySpread = Math.abs(shoulder.y - ankle.y);   // lying vs standing
+  const sideTilt = Math.abs(shoulder.y - hip.y);    // sideways
+  const elbowDiff = Math.abs(elbow.x - shoulder.x); // elbow alignment
+
+  const isLying = ySpread < THRESHOLDS.LIE_Y;
+  const isSideways = sideTilt > THRESHOLDS.SIDE_TILT;
+  const elbowAligned = elbowDiff < THRESHOLDS.ELBOW_ALIGN;
+
+  const baseValid = isLying && isSideways;
+
+  // DEBUG
+  console.log(
+    "SIDE PLANK →",
+    "Stage:", stage,
+    "Angle:", Math.round(bodyAngle),
+    "ySpread:", ySpread.toFixed(2),
+    "tilt:", sideTilt.toFixed(2),
+    "elbow:", elbowDiff.toFixed(2),
+    "time:", holdTime
+  );
+
+  // =====================
+  // ENTRY
+  // =====================
+  if (stage === "ENTRY") {
+
+    if (!isLying) {
+      return output("Lie down on your side");
+    }
+
+    if (!isSideways) {
+      return output("Turn your body sideways");
+    }
+
+    stage = "SETUP_ARM";
+    return output("Use your arm to lift your upper body");
+  }
+
+  // =====================
+  // SETUP ARM
+  // =====================
+  if (stage === "SETUP_ARM") {
+
+    if (!elbowAligned) {
+      return output("Place your elbow under your shoulder");
+    }
+
+    stage = "ALIGN_BODY";
+    return output("Lift your hips and make a straight line");
+  }
+
+  // =====================
+  // ALIGN BODY
+  // =====================
+  if (stage === "ALIGN_BODY") {
+
+    // 🔴 MUST still be valid base
+    if (!baseValid) {
+      stage = "ENTRY";
+      return output("Get back into position");
+    }
+
+    if (bodyAngle < THRESHOLDS.BODY_STRAIGHT) {
+      return output("Lift your hips and keep body straight");
+    }
+
+    stage = "HOLD";
+    holdStart = Date.now();
+    return output("Good, hold this position");
+  }
+
+  // =====================
+  // HOLD
+  // =====================
+  if (stage === "HOLD") {
+
+    // 🔴 GLOBAL BREAK (fixes your bug)
+    if (!baseValid) {
+      stage = "ENTRY";
+      holdStart = null;
+      holdTime = 0;
+      return output("Get back into position");
+    }
+
+    // hips dropped
+    if (bodyAngle < THRESHOLDS.BODY_BREAK) {
+      stage = "ALIGN_BODY";
+      holdStart = null;
+      holdTime = 0;
+      return output("Lift your hips");
+    }
+
+    // elbow moved
+    if (!elbowAligned) {
+      stage = "SETUP_ARM";
+      holdStart = null;
+      holdTime = 0;
+      return output("Keep your elbow under your shoulder");
+    }
+
+    holdTime = Math.floor((Date.now() - holdStart) / 1000);
+
+    if (holdTime === 5 || holdTime === 10) {
+      return output(`Hold ${holdTime} seconds`);
+    }
+
+    return output("");
+  }
+
+  return null;
+
+  // =====================
+  // OUTPUT CONTROL
+  // =====================
+  function output(msg) {
+    if (!msg || msg === lastFeedback) {
+      return {
+        stage,
+        plankTime: holdTime,
+        bodyAngle,
+        feedback: ""
+      };
+    }
+
+    lastFeedback = msg;
+
+    return {
+      stage,
+      plankTime: holdTime,
+      bodyAngle,
+      feedback: msg
+    };
+  }
+}

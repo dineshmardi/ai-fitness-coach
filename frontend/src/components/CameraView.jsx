@@ -25,6 +25,8 @@ export default function CameraView({ workoutQueue, onFinish }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
+    const cameraContainerRef = useRef(null);//new scroll to camera
+
     // IMPORTANT: stable exercise reference for animation loop
     const exerciseRef = useRef("squat");
     //session start time
@@ -74,7 +76,7 @@ export default function CameraView({ workoutQueue, onFinish }) {
         }
         groupedExercises[ex.category].push(ex); // store full object
     });
-    
+
 
     // BODY SKELETON CONNECTIONS
     const connections = [
@@ -87,6 +89,14 @@ export default function CameraView({ workoutQueue, onFinish }) {
         [24, 26], [26, 28],
         [27, 31], [28, 32]
     ];
+
+    const COLORS = {
+        skeleton: "#22d3ee",   // cyan lines
+        joints: "#38bdf8",     // light blue dots
+        accent: "#a78bfa"
+    };
+
+
 
     // ==============================
     // START CAMERA
@@ -106,6 +116,14 @@ export default function CameraView({ workoutQueue, onFinish }) {
             videoRef.current.play();
 
             setCameraOn(true);
+
+            // 🔥 scroll to camera
+            setTimeout(() => {
+                cameraContainerRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center"
+                });
+            }, 300);
 
             // record session start time
             // record session start time
@@ -156,16 +174,34 @@ export default function CameraView({ workoutQueue, onFinish }) {
 
         const duration = Math.floor((Date.now() - sessionStartRef.current) / 1000);
 
+
+        // 🔥 save current exercise progress (IMPORTANT)
+        if (isGuidedMode) {
+
+            const alreadyAdded = sessionExercisesRef.current.find(
+                ex => ex.type === exerciseRef.current
+            );
+
+            if (!alreadyAdded) {
+                sessionExercisesRef.current.push({
+                    type: exerciseRef.current,
+                    reps: reps
+                });
+            }
+        }
+
         // -------- SUMMARY FOR MANUAL MODE --------
-        if (!isGuidedMode && onFinish) {
+        if (onFinish) {
 
             onFinish({
-                exercises: [
-                    {
-                        type: exerciseRef.current,
-                        reps: reps
-                    }
-                ],
+                exercises: isGuidedMode
+                    ? sessionExercisesRef.current
+                    : [
+                        {
+                            type: exerciseRef.current,
+                            reps: reps
+                        }
+                    ],
                 totalCalories: Math.floor(reps * 0.4),
                 totalDuration: duration
             });
@@ -175,13 +211,20 @@ export default function CameraView({ workoutQueue, onFinish }) {
         // -------- SAVE WORKOUT --------
         const workoutData = {
             userId: "guest",
-            exercises: [
-                {
-                    type: exerciseRef.current,
-                    reps: reps
-                }
-            ],
-            totalCalories: Math.floor(reps * 0.4),
+            exercises: isGuidedMode
+                ? sessionExercisesRef.current
+                : [
+                    {
+                        type: exerciseRef.current,
+                        reps: reps
+                    }
+                ],
+            totalCalories: isGuidedMode
+                ? sessionExercisesRef.current.reduce(
+                    (sum, ex) => sum + ((ex.reps || 0) * 0.4),
+                    0
+                )
+                : Math.floor(reps * 0.4),
             totalDuration: duration
         };
 
@@ -215,8 +258,15 @@ export default function CameraView({ workoutQueue, onFinish }) {
             ctx.beginPath();
             ctx.moveTo(x1, y1);
             ctx.lineTo(x2, y2);
-            ctx.strokeStyle = "lime";
-            ctx.lineWidth = 3;
+            ctx.strokeStyle = COLORS.skeleton;
+            ctx.lineWidth = 2;
+
+            // smooth edges
+            ctx.lineCap = "round";
+
+            // glow effect
+            ctx.shadowColor = COLORS.skeleton;
+            ctx.shadowBlur = 8;
             ctx.stroke();
 
         });
@@ -229,10 +279,17 @@ export default function CameraView({ workoutQueue, onFinish }) {
 
             ctx.beginPath();
             ctx.arc(x, y, 6, 0, 2 * Math.PI);
-            ctx.fillStyle = "red";
+            ctx.fillStyle = COLORS.joints;
+
+            // glow effect
+            ctx.shadowColor = COLORS.joints;
+            ctx.shadowBlur = 6;
             ctx.fill();
 
         });
+        ctx.shadowBlur = 0;
+
+
     }
 
     // ==============================
@@ -408,6 +465,10 @@ export default function CameraView({ workoutQueue, onFinish }) {
                         console.log("reps:", result.reps);
                     }
 
+                    if (result.holdTime !== undefined) {
+                        setAngle(result.holdTime); // reuse angle display as timer
+                    }
+
                     console.log("Current Exercise:", currentExercise);
                 }
             }
@@ -415,6 +476,11 @@ export default function CameraView({ workoutQueue, onFinish }) {
 
         requestAnimationFrame(runPose);
     }
+
+    // 🔥 FIX: correct display exercise for guided mode
+    const displayExercise = isGuidedMode
+        ? workoutQueue?.[0]?.type || exercise
+        : exercise;
 
     // ==============================
     // UI
@@ -518,6 +584,7 @@ export default function CameraView({ workoutQueue, onFinish }) {
 
             {/* CAMERA VIEW */}
             <div
+                ref={cameraContainerRef} //to camera part scroll
                 style={{
                     position: "relative",
                     width: "90vw",
@@ -572,15 +639,52 @@ export default function CameraView({ workoutQueue, onFinish }) {
             </div>
 
             {/* CAMERA CONTROLS */}
-            <div style={{ display: "flex", justifyContent: "center" }}>
+            <div
+                style={{
+                    position: "fixed",
+                    bottom: "20px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 1000,
+                    display: "flex",
+                    gap: "12px",
+                    padding: "10px 16px",
+                    borderRadius: "12px",
+                    background: "rgba(0,0,0,0.6)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 5px 20px rgba(0,0,0,0.5)"
+                }}
+            >
                 {!cameraOn && (
-                    <button onClick={startCamera}>
-                        Start Camera
+                    <button
+                        onClick={startCamera}
+                        style={{
+                            padding: "10px 18px",
+                            borderRadius: "8px",
+                            border: "none",
+                            background: "#22c55e",
+                            color: "white",
+                            fontWeight: "600",
+                            cursor: "pointer"
+                        }}
+                    >
+                        Start {displayExercise}
                     </button>
                 )}
 
                 {cameraOn && (
-                    <button onClick={stopCamera}>
+                    <button
+                        onClick={stopCamera}
+                        style={{
+                            padding: "10px 18px",
+                            borderRadius: "8px",
+                            border: "none",
+                            background: "#ef4444",
+                            color: "white",
+                            fontWeight: "600",
+                            cursor: "pointer"
+                        }}
+                    >
                         Stop Camera
                     </button>
                 )}
@@ -588,7 +692,7 @@ export default function CameraView({ workoutQueue, onFinish }) {
 
             {/* STATS */}
             <div style={{ textAlign: "center" }}>
-                <h2>Exercise: {exercise}</h2>
+                <h2>Exercise: {displayExercise}</h2>
 
                 <h3>
                     {exercise === "plank"

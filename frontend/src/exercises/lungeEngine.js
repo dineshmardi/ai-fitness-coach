@@ -1,4 +1,5 @@
 import { calculateAngle } from "../utils/angleUtils";
+import { smooth } from "../utils/smoothing";
 
 const THRESHOLDS = {
   FRONT_BENT: 110,
@@ -54,9 +55,11 @@ export function analyzeLunge(landmarks) {
   // KNEE ANGLES
   // =========================
 
-  const leftKneeAngle = calculateAngle(leftHip, leftKnee, leftAnkle);
-  const rightKneeAngle = calculateAngle(rightHip, rightKnee, rightAnkle);
+  let leftKneeAngle = calculateAngle(leftHip, leftKnee, leftAnkle);
+  leftKneeAngle = smooth("lunge_left_knee", leftKneeAngle);
 
+  let rightKneeAngle = calculateAngle(rightHip, rightKnee, rightAnkle);
+  rightKneeAngle = smooth("lunge_right_knee", rightKneeAngle);
   // Determine front leg (more bent)
   const isLeftFront = leftKneeAngle < rightKneeAngle;
 
@@ -71,7 +74,8 @@ export function analyzeLunge(landmarks) {
 
   const backLegKnee = isLeftFront ? rightKnee : leftKnee;
 
-  const torsoAngle = calculateAngle(shoulder, hip, backLegKnee);
+  let torsoAngle = calculateAngle(shoulder, hip, backLegKnee);
+  torsoAngle = smooth("lunge_torso", torsoAngle);
 
   if (torsoAngle < THRESHOLDS.TORSO_UPRIGHT) {
     return {

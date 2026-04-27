@@ -1,0 +1,243 @@
+import { calculateAngle } from "../utils/angleUtils";
+import { smooth } from "../utils/smoothing";
+
+const THRESHOLDS = {
+    // posture
+    KNEE_STRAIGHT: 165,
+    KNEE_BENT_BAD: 150,
+
+    HIP_STAND: 160,
+    HIP_90: 100,
+    HIP_FULL: 75,
+
+    HAND_TO_TOE: 0.10,
+    HEAD_DOWN_OFFSET: 0.03,
+
+    // timing
+    HOLD_TIME: 10000,
+    REST_TIME: 5000,
+    BREAK_TIME: 600
+};
+
+let stage = "ENTRY";
+
+let holdStart = null;
+let restStart = null;
+let breakStart = null;
+
+let reps = 0;
+let lastFeedback = "";
+
+// motion tracking
+let prevHipAngle = null;
+
+export function resetTouchToes() {
+    stage = "ENTRY";
+    holdStart = null;
+    restStart = null;
+    breakStart = null;
+    reps = 0;
+    lastFeedback = "";
+    prevHipAngle = null;
+}
+
+export function analyzeTouchToes(landmarks) {
+    if (!landmarks) return null;
+
+    const shoulder = landmarks[11];
+    const hip = landmarks[23];
+    const knee = landmarks[25];
+    const ankle = landmarks[27];
+    const wrist = landmarks[15];
+    const nose = landmarks[0];
+
+    // =====================
+    // ANGLES (SMOOTHED)
+    // =====================
+    const kneeAngle = smooth("tt_knee", calculateAngle(hip, knee, ankle));
+    const hipAngle = smooth("tt_hip", calculateAngle(shoulder, hip, knee));
+
+    // =====================
+    // GLOBAL KNEE CHECK (CRITICAL)
+    // =====================
+    if (kneeAngle < THRESHOLDS.KNEE_BENT_BAD) {
+        if (stage === "HOLD" || stage === "GO_UP") {
+            stage = "GO_DOWN";
+            holdStart = null;
+        }
+        return output("Keep your legs straight");
+    }
+
+    // =====================
+    // MOTION DETECTION
+    // =====================
+    let goingDown = false;
+    let goingUp = false;
+
+    if (prevHipAngle !== null) {
+        goingDown = hipAngle < prevHipAngle - 2;
+        goingUp = hipAngle > prevHipAngle + 2;
+    }
+
+    prevHipAngle = hipAngle;
+
+    // =====================
+    // CONDITIONS
+    // =====================
+    const standing =
+        kneeAngle > THRESHOLDS.KNEE_STRAIGHT &&
+        hipAngle > THRESHOLDS.HIP_STAND;
+
+    const halfBend = hipAngle < THRESHOLDS.HIP_90;
+    const fullBend = hipAngle < THRESHOLDS.HIP_FULL;
+
+    const handsNearToes =
+        Math.abs(wrist.y - ankle.y) < THRESHOLDS.HAND_TO_TOE;
+
+    const headDown =
+        nose.y > hip.y + THRESHOLDS.HEAD_DOWN_OFFSET;
+
+    const fullPose =
+        fullBend && handsNearToes && headDown;
+
+    console.log(
+        "TT →",
+        "stage:", stage,
+        "knee:", Math.round(kneeAngle),
+        "hip:", Math.round(hipAngle),
+        "down:", goingDown,
+        "up:", goingUp,
+        "full:", fullPose
+    );
+
+    // =====================
+    // ENTRY
+    // =====================
+    if (stage === "ENTRY") {
+
+        if (!standing) return output("Stand straight");
+
+        stage = "GO_DOWN";
+        return output("Bend forward slowly");
+    }
+
+    // =====================
+    // GO DOWN
+    // =====================
+    if (stage === "GO_DOWN") {
+
+        if (!goingDown && !halfBend) {
+            return output("Start bending forward");
+        }
+
+        if (halfBend) {
+            stage = "REACH";
+            return output("Try to touch your toes");
+        }
+
+        return output("");
+    }
+
+    // =====================
+    // REACH
+    // =====================
+    if (stage === "REACH") {
+
+        if (!fullBend) return output("Bend deeper");
+        if (!handsNearToes) return output("Reach your toes");
+        if (!headDown) return output("Lower your head");
+
+        stage = "HOLD";
+        holdStart = Date.now();
+        return output("Perfect, hold this position");
+    }
+
+    // =====================
+    // HOLD (FIXED)
+    // =====================
+    if (stage === "HOLD") {
+
+        if (!fullPose) {
+            if (!breakStart) breakStart = Date.now();
+
+            if (Date.now() - breakStart > THRESHOLDS.BREAK_TIME) {
+                stage = "REACH";
+                return output("Go back to full position");
+            }
+        } else {
+            breakStart = null;
+        }
+
+        const elapsed = Date.now() - holdStart;
+        const seconds = Math.floor(elapsed / 1000);
+
+        // 👇 speak milestones but DON'T block flow
+        if (seconds === 5) {
+            lastFeedback = ""; // force next message
+            return output("Hold 5 seconds");
+        }
+
+        // 👇 FINAL transition (no blocking before this)
+        if (elapsed >= THRESHOLDS.HOLD_TIME) {
+            stage = "GO_UP";
+            prevHipAngle = null;
+            lastFeedback = ""; // 🔥 allow new instruction
+            return output("Slowly come back up");
+        }
+
+        return output("");
+    }
+
+    // =====================
+    // GO UP
+    // =====================
+    if (stage === "GO_UP") {
+
+        if (!goingUp && !standing) {
+            return output("Come up slowly");
+        }
+
+        if (standing) {
+            stage = "REST";
+            restStart = Date.now();
+            reps++;
+            return output(`Rep ${reps} complete`);
+        }
+
+        return output("");
+    }
+
+    // =====================
+    // REST
+    // =====================
+    if (stage === "REST") {
+
+        const elapsed = Date.now() - restStart;
+
+        if (elapsed < THRESHOLDS.REST_TIME) {
+            return output("Relax");
+        }
+
+        stage = "GO_DOWN";
+        return output("Again bend forward");
+    }
+
+    return null;
+
+    // =====================
+    // OUTPUT CONTROL
+    // =====================
+    function output(msg) {
+        if (!msg || msg === lastFeedback) {
+            return { stage, reps, feedback: "" };
+        }
+
+        lastFeedback = msg;
+
+        return {
+            stage,
+            reps,
+            feedback: msg
+        };
+    }
+}

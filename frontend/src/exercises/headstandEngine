@@ -1,0 +1,165 @@
+// =====================
+// CONFIG
+// =====================
+const VERTICAL_TOL = 0.08;
+const UPSIDE_MARGIN = 0.03;
+const HYPE_TIME = 10;
+
+// =====================
+let stage = "ENTRY";
+let holdStart = null;
+let seconds = 0;
+let lastFeedback = "";
+let lastSpokenSecond = -1;
+
+// =====================
+export function resetHeadstand() {
+    stage = "ENTRY";
+    holdStart = null;
+    seconds = 0;
+    lastFeedback = "";
+    lastSpokenSecond = -1;
+}
+
+// =====================
+export function analyzeHeadstand(landmarks) {
+    if (!landmarks) return;
+
+    // LEFT
+    const lShoulder = landmarks[11];
+    const lHip = landmarks[23];
+    const lAnkle = landmarks[27];
+
+    // RIGHT
+    const rShoulder = landmarks[12];
+    const rHip = landmarks[24];
+    const rAnkle = landmarks[28];
+
+    // =====================
+    // CENTER POINTS
+    // =====================
+    const shoulder = {
+        x: (lShoulder.x + rShoulder.x) / 2,
+        y: (lShoulder.y + rShoulder.y) / 2
+    };
+
+    const hip = {
+        x: (lHip.x + rHip.x) / 2,
+        y: (lHip.y + rHip.y) / 2
+    };
+
+    const ankle = {
+        x: (lAnkle.x + rAnkle.x) / 2,
+        y: (lAnkle.y + rAnkle.y) / 2
+    };
+
+    // =====================
+    // STATES
+    // =====================
+    const isStanding = shoulder.y < hip.y;
+
+    const inverted =
+        hip.y < shoulder.y - UPSIDE_MARGIN &&
+        ankle.y < hip.y - UPSIDE_MARGIN;
+
+    const aligned =
+        Math.abs(shoulder.x - hip.x) < VERTICAL_TOL &&
+        Math.abs(hip.x - ankle.x) < VERTICAL_TOL;
+
+    console.log({ stage, isStanding, inverted, aligned, seconds });
+
+    // =====================
+    // GLOBAL COLLAPSE FIX 🔥
+    // =====================
+    if (!inverted && stage !== "ENTRY") {
+        stage = "INVERT";
+        holdStart = null;
+        seconds = 0;
+        lastSpokenSecond = -1;
+        return output("Lift your legs up over your head");
+    }
+
+    // =====================
+    // ENTRY
+    // =====================
+    if (stage === "ENTRY") {
+        if (isStanding) {
+            return output("Place your head on the ground and lift your body up");
+        }
+
+        stage = "INVERT";
+        return output("Lift your legs up over your head");
+    }
+
+    // =====================
+    // INVERT
+    // =====================
+    if (stage === "INVERT") {
+        if (!inverted) {
+            return output("Lift your legs up over your head");
+        }
+
+        stage = "ALIGN";
+        return output("Make your body straight");
+    }
+
+    // =====================
+    // ALIGN
+    // =====================
+    if (stage === "ALIGN") {
+        if (!aligned) {
+            return output("Keep your body straight");
+        }
+
+        stage = "HOLD";
+        holdStart = Date.now();
+        seconds = 0;
+        lastSpokenSecond = -1;
+        return output("Hold steady");
+    }
+
+    // =====================
+    // HOLD
+    // =====================
+    if (stage === "HOLD") {
+
+        if (!aligned) {
+            stage = "ALIGN";
+            holdStart = null;
+            seconds = 0;
+            return output("Keep your body straight");
+        }
+
+        const t = (Date.now() - holdStart) / 1000;
+        seconds = Math.floor(t);
+
+        // 🔥 HYPE AFTER 10 SEC
+        if (seconds === HYPE_TIME) {
+            return output("Awesome hold keep going");
+        }
+
+        // 🔥 CLEAN COUNTING (no spaced speech)
+        if (seconds !== lastSpokenSecond) {
+            lastSpokenSecond = seconds;
+            return {
+                stage,
+                feedback: `${seconds} seconds`,
+                reps: seconds
+            };
+        }
+
+        return { stage, feedback: "", reps: seconds };
+    }
+
+    return null;
+
+    // =====================
+    function output(msg) {
+        if (msg === lastFeedback && stage !== "HOLD") {
+            return { stage, feedback: "", reps: seconds };
+        }
+
+        lastFeedback = msg;
+        return { stage, feedback: msg, reps: seconds };
+    }
+}
