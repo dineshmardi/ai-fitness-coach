@@ -1,0 +1,85 @@
+const styles = {
+  root: {
+    display: "flex",
+    minHeight: "100vh",
+    background: "linear-gradient(135deg, #050708 0%, #0b1013 50%, #0a1412 100%)",
+    fontFamily: "'Manrope', system-ui, sans-serif",
+    color: "#ecf1f3",
+    position: "relative",
+    overflow: "hidden",
+    width: "100%",
+  },
+  orb1: {
+    position: "absolute", width: 500, height: 500, borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(var(--accent-2-rgb),0.18) 0%, transparent 70%)",
+    top: -100, left: 80, pointerEvents: "none",
+  },
+  orb2: {
+    position: "absolute", width: 400, height: 400, borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(var(--accent-rgb),0.16) 0%, transparent 70%)",
+    bottom: 60, right: 100, pointerEvents: "none",
+  },
+  sidebar: {
+    width: 210, flexShrink: 0,
+    background: "rgba(8,12,14,0.9)",
+    borderRight: "1px solid rgba(255,255,255,0.08)",
+    display: "flex", flexDirection: "column", gap: 2,
+    zIndex: 2, paddingBottom: 0,
+  },
+  brandWrap: {
+    padding: "22px 20px 20px",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+    marginBottom: 10,
+  },
+  brandName: {
+    fontSize: 18, fontWeight: 800,
+    background: "linear-gradient(90deg, var(--accent), var(--accent-2))",
+    WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+  },
+  brandSub: { fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2, letterSpacing: "1.2px" },
+  navSection: { fontSize: 9.5, color: "rgba(255,255,255,0.28)", padding: "10px 20px 4px", letterSpacing: "1px", textTransform: "uppercase" },
+  navItem: {
+    display: "flex", alignItems: "center", gap: 10,
+    padding: "9px 20px", fontSize: 13, cursor: "pointer",
+    borderLeft: "2px solid transparent", transition: "all 0.18s",
+    color: "rgba(255,255,255,0.5)",
+  },
+  navItemActive: {
+    color: "var(--accent)",
+    background: "rgba(var(--accent-rgb),0.12)",
+    borderLeft: "2px solid var(--accent)",
+  },
+  sidebarBottom: {
+    marginTop: "auto", padding: "16px 20px",
+    borderTop: "1px solid rgba(255,255,255,0.07)",
+  },
+  avatar: {
+    width: 32, height: 32, borderRadius: "50%",
+    background: "linear-gradient(135deg, var(--accent), var(--accent-2))",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0,
+  },
+  main: { flex: 1, padding: 24, overflowY: "auto", zIndex: 2, minWidth: 0 },
+  topbar: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, flexWrap: "wrap", gap: 12 },
+  filterRow: {
+    display: "flex", gap: 5,
+    background: "rgba(13,20,23,0.8)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 10, padding: 4,
+  },
+  bento: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 },
+  glass: {
+    background: "rgba(10,16,18,0.85)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 16, padding: 18,
+    animation: "fadeUp 0.45s ease both",
+    position: "relative", overflow: "hidden",
+    transition: "border-color 0.2s",
+  },
+  cardLabel: { fontSize: 10, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10 },
+  empty: { color: "rgba(255,255,255,0.35)", fontSize: 12, padding: "24px 0", textAlign: "center" },
+};
+
+export default styles;
