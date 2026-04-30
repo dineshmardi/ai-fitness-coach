@@ -34,6 +34,7 @@ export default function Profile() {
     message: "",
   });
   const [fieldErrors, setFieldErrors] = useState({});
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
 
   function validateProfile() {
     const nextErrors = {};
@@ -80,7 +81,7 @@ export default function Profile() {
       }
 
       try {
-        const response = await fetch("http://localhost:5000/api/profile", {
+        const response = await fetch(`${API_BASE_URL}/api/profile`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -126,7 +127,7 @@ export default function Profile() {
     setStatus({ type: "idle", message: "" });
 
     try {
-      const response = await fetch("http://localhost:5000/api/profile", {
+      const response = await fetch(`${API_BASE_URL}/api/profile` , {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -186,7 +187,7 @@ export default function Profile() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/profile/password",
+        `${API_BASE_URL}/api/profile/password`,
         {
           method: "PUT",
           headers: {

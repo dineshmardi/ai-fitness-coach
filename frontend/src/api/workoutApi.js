@@ -1,4 +1,5 @@
 const TOKEN_KEY = "aiFitnessCoach.authToken";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 function getAuthHeader() {
     const token = window.localStorage.getItem(TOKEN_KEY);
@@ -9,7 +10,7 @@ export async function saveWorkoutSession(data) {
 
     try {
 
-        const response = await fetch("http://localhost:5000/api/save-workout", {
+        const response = await fetch(`${API_BASE_URL}/api/save-workout`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -35,7 +36,7 @@ export async function getWorkoutSessions() {
 
     try {
 
-        const response = await fetch("http://localhost:5000/api/workouts", {
+        const response = await fetch(`${API_BASE_URL}/api/workouts`, {
             headers: {
                 ...getAuthHeader()
             }
