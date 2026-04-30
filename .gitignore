@@ -91,3 +91,4 @@ temp/
 # Allow the pose model
 # =========================
 !frontend/public/models/pose_landmarker_heavy.task
+!frontend/public/models/pose_landmarker_full.task
