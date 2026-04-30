@@ -94,7 +94,7 @@ export default function HomeScreen({
               color: "rgba(236,241,243,0.6)",
             }}
           >
-            AI Powered Training
+            AI-Based Real-Time Fitness Tracking System
           </div>
           <h1
             style={{
@@ -153,7 +153,7 @@ export default function HomeScreen({
           </div>
         </div>
 
-        <Card
+        {/* <Card
           className="home-right"
           variant="panel"
           padding="20px"
@@ -236,7 +236,7 @@ export default function HomeScreen({
           >
             Sync your camera to unlock live form scoring.
           </Card>
-        </Card>
+        </Card> */}
       </div>
     </PageShell>
   );

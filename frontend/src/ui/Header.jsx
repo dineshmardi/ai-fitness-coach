@@ -163,12 +163,14 @@ export default function Header({
         >
           {isMobileMenuOpen ? "✕" : "☰"}
         </button>
-        <div style={logoStyles}>PulseForge</div>
+        <div style={logoStyles}>AI-Based Real-Time Fitness Tracking System</div>
       </div>
 
       {/* Center: Title */}
       <div style={centerSectionStyles}>
-        <div style={titleStyles}>Fitness Coach</div>
+        <div style={titleStyles}>
+          AI-Based Real-Time Fitness Tracking System
+        </div>
       </div>
 
       {/* Right: Icons */}

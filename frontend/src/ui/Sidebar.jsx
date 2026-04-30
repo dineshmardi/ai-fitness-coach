@@ -233,7 +233,9 @@ export default function Sidebar({
     <div style={sidebarStyles}>
       {/* Brand */}
       <div style={brandStyles}>
-        <div style={brandNameStyles}>PulseForge</div>
+        <div style={brandNameStyles}>
+          AI-Based Real-Time Fitness Tracking System
+        </div>
         <div style={brandSubStyles}>Athletic AI Lab</div>
         <div style={brandBadgeStyles}>BETA BUILD</div>
       </div>
