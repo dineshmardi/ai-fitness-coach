@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { getWorkoutSessions } from "../api/workoutApi";
 import Icon from "./dashboard/icons";
 import styles from "./dashboard/styles";
@@ -12,6 +13,7 @@ import SessionsFeed from "./dashboard/components/SessionsFeed";
 import CaloriesChart from "./dashboard/components/CaloriesChart";
 import DonutChart from "./dashboard/components/DonutChart";
 import { SectionHeader } from "../ui";
+import { useAuth } from "../auth/AuthContext";
 
 function generateMockData() {
   const now = new Date();
@@ -36,6 +38,9 @@ function generateMockData() {
 // === MAIN DASHBOARD ===
 export default function Dashboard() {
   const [allData, setAllData] = useState([]);
+  const [authError, setAuthError] = useState("");
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
@@ -44,11 +49,18 @@ export default function Dashboard() {
 
         if (Array.isArray(data)) {
           setAllData(data);
+          setAuthError("");
         } else {
           setAllData([]);
         }
       } catch (err) {
+        if (err?.status === 401) {
+          logout();
+          navigate("/login", { replace: true });
+          return;
+        }
         console.error("API failed → using mock fallback", err);
+        setAuthError("Unable to load workouts. Showing sample data.");
         setAllData(generateMockData()); // fallback
       }
     }
@@ -104,6 +116,21 @@ export default function Dashboard() {
 
         {/* === MAIN CONTENT === */}
         <div style={styles.main}>
+          {authError && (
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: "10px",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.04)",
+                color: "rgba(255,255,255,0.7)",
+                fontSize: "12px",
+                marginBottom: "12px",
+              }}
+            >
+              {authError}
+            </div>
+          )}
           {/* === TOPBAR === */}
           <div style={styles.topbar}>
             <div>

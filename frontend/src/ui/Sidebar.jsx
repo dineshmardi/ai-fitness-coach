@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 
 export default function Sidebar({
   isMobile = false,
@@ -7,6 +8,10 @@ export default function Sidebar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
+  const displayName = user?.name || user?.email || "Guest";
+  const statusLabel = isAuthenticated ? "Signed in" : "Guest";
+  const statusPillLabel = isAuthenticated ? "Active" : "Offline";
 
   const navItems = [
     {
@@ -23,7 +28,10 @@ export default function Sidebar({
     },
     {
       section: "Settings",
-      items: [{ label: "Preferences", path: "/", icon: "gear" }],
+      items: [
+        { label: "Profile", path: "/profile", icon: "user" },
+        { label: "Preferences", path: "/", icon: "gear" },
+      ],
     },
   ];
 
@@ -158,6 +166,17 @@ export default function Sidebar({
   };
 
   const iconMap = {
+    user: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <path d="M20 21c0-4-3.6-6-8-6s-8 2-8 6" />
+        <circle cx="12" cy="8" r="4" />
+      </svg>
+    ),
     home: (
       <svg
         viewBox="0 0 24 24"
@@ -257,19 +276,20 @@ export default function Sidebar({
             width: "32px",
             height: "32px",
             borderRadius: "50%",
-            background:
-              "linear-gradient(135deg, var(--accent), var(--accent-2))",
+            background: user?.avatarUrl
+              ? `url(${user.avatarUrl}) center/cover`
+              : "linear-gradient(135deg, var(--accent), var(--accent-2))",
           }}
         />
         <div>
           <div style={{ color: "rgba(255, 255, 255, 0.9)", fontWeight: 500 }}>
-            User
+            {displayName}
           </div>
           <div style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px" }}>
-            Premium
+            {statusLabel}
           </div>
         </div>
-        <div style={statusPillStyles}>Active</div>
+        <div style={statusPillStyles}>{statusPillLabel}</div>
       </div>
     </div>
   );

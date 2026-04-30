@@ -4,3 +4,6 @@ export { default as WorkoutSummary } from "./WorkoutSummary";
 export { default as WorkoutSessionPage } from "./WorkoutSessionPage";
 export { default as WorkoutSummaryPage } from "./WorkoutSummaryPage";
 export { default as Dashboard } from "./Dashboard";
+export { default as Login } from "./Login";
+export { default as Register } from "./Register";
+export { default as Profile } from "./Profile";

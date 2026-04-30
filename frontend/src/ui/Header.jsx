@@ -1,8 +1,33 @@
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+
 export default function Header({
   onToggleSidebar,
   isMobileMenuOpen,
   isMobile = false,
 }) {
+  const navigate = useNavigate();
+  const { isAuthenticated, logout, user } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const displayName = user?.name || user?.email || "User";
+  const initial = displayName.trim().charAt(0).toUpperCase() || "U";
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return undefined;
+    }
+
+    function handleClick(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
   const hamburgerStyles = {
     display: "block",
     background: "none",
@@ -68,6 +93,50 @@ export default function Header({
     justifyContent: "flex-end",
   };
 
+  const avatarButtonStyles = {
+    width: "34px",
+    height: "34px",
+    borderRadius: "50%",
+    border: "1px solid rgba(157, 255, 87, 0.4)",
+    background: user?.avatarUrl
+      ? `url(${user.avatarUrl}) center/cover`
+      : "linear-gradient(135deg, rgba(157, 255, 87, 0.2), rgba(51, 246, 255, 0.12))",
+    color: "var(--accent)",
+    fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
+
+  const menuStyles = {
+    position: "absolute",
+    top: "44px",
+    right: 0,
+    width: "200px",
+    padding: "10px",
+    borderRadius: "12px",
+    background: "rgba(8, 12, 14, 0.95)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    boxShadow: "0 14px 30px rgba(0,0,0,0.35)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    zIndex: 1200,
+  };
+
+  const menuItemStyles = {
+    padding: "8px 10px",
+    borderRadius: "8px",
+    border: "1px solid transparent",
+    background: "rgba(255,255,255,0.04)",
+    color: "rgba(255,255,255,0.85)",
+    fontSize: "12px",
+    cursor: "pointer",
+    textAlign: "left",
+  };
+
   const notificationIconStyles = {
     width: "32px",
     height: "32px",
@@ -104,6 +173,61 @@ export default function Header({
 
       {/* Right: Icons */}
       <div style={rightSectionStyles}>
+        {isAuthenticated && (
+          <div style={{ position: "relative" }} ref={menuRef}>
+            <button
+              type="button"
+              style={avatarButtonStyles}
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label="Open user menu"
+            >
+              {!user?.avatarUrl && initial}
+            </button>
+            {menuOpen && (
+              <div style={menuStyles} role="menu">
+                <div
+                  style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)" }}
+                >
+                  Signed in as
+                </div>
+                <div style={{ fontSize: "13px", fontWeight: 600 }}>
+                  {displayName}
+                </div>
+                <button
+                  type="button"
+                  style={menuItemStyles}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate("/profile");
+                  }}
+                >
+                  Profile
+                </button>
+                <button
+                  type="button"
+                  style={menuItemStyles}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate("/dashboard");
+                  }}
+                >
+                  Go to dashboard
+                </button>
+                <button
+                  type="button"
+                  style={menuItemStyles}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    logout();
+                    navigate("/", { replace: true });
+                  }}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <div style={notificationIconStyles} title="Notifications">
           🔔
         </div>

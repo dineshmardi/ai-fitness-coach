@@ -3,10 +3,14 @@ import AppLayout from "./layouts/AppLayout";
 import {
   Dashboard,
   HomeScreen,
+  Login,
+  Profile,
+  Register,
   WorkoutBuilder,
   WorkoutSessionPage,
   WorkoutSummaryPage,
 } from "./pages";
+import ProtectedRoute from "./auth/ProtectedRoute";
 
 const QUEUE_STORAGE_KEY = "aiFitnessCoach.workoutQueue";
 
@@ -41,9 +45,14 @@ function App() {
           path="/workout/builder"
           element={<WorkoutBuilder onStartWorkout={startWorkout} />}
         />
-        <Route path="/workout/summary" element={<WorkoutSummaryPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/workout/summary" element={<WorkoutSummaryPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
       </Route>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
       {/* Full-Screen Routes - No Layout */}
       <Route

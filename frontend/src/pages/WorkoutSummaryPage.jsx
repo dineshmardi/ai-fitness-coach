@@ -1,4 +1,5 @@
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import WorkoutSummary from "./WorkoutSummary";
 
 const SUMMARY_STORAGE_KEY = "aiFitnessCoach.workoutSummary";
@@ -23,8 +24,13 @@ function clearStoredValue(key) {
 export default function WorkoutSummaryPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const summary =
     location.state?.summary ?? readStoredValue(SUMMARY_STORAGE_KEY);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
   if (!summary) {
     return <Navigate to="/" replace />;

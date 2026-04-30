@@ -1,3 +1,10 @@
+const TOKEN_KEY = "aiFitnessCoach.authToken";
+
+function getAuthHeader() {
+    const token = window.localStorage.getItem(TOKEN_KEY);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function saveWorkoutSession(data) {
 
     try {
@@ -5,7 +12,8 @@ export async function saveWorkoutSession(data) {
         const response = await fetch("http://localhost:5000/api/save-workout", {
             method: "POST",
             headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                ...getAuthHeader()
             },
             body: JSON.stringify(data)
         });
@@ -27,7 +35,23 @@ export async function getWorkoutSessions() {
 
     try {
 
-        const response = await fetch("http://localhost:5000/api/workouts");
+        const response = await fetch("http://localhost:5000/api/workouts", {
+            headers: {
+                ...getAuthHeader()
+            }
+        });
+
+        if (response.status === 401) {
+            const error = new Error("Unauthorized");
+            error.status = 401;
+            throw error;
+        }
+
+        if (!response.ok) {
+            const error = new Error("Failed to fetch workouts");
+            error.status = response.status;
+            throw error;
+        }
 
         const data = await response.json();
 
@@ -37,7 +61,7 @@ export async function getWorkoutSessions() {
 
         console.error("Error fetching workouts:", error);
 
-        return [];
+        throw error;
 
     }
 
